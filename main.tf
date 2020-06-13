@@ -3,26 +3,30 @@ provider "google" {
 
   credentials = file("../nacita-dev-terraform-demo.json")
 
-  project = "nacita-dev"
-  region  = "us-central1"
-  zone    = "us-central1-c"
+  project = var.project
+  region  = var.region
+  zone    = var.zone
 }
 
-resource "google_compute_network" "vpc_network" {
-  name                    = "terraform-network"
-  auto_create_subnetworks = false
+# New resource for the storage bucket our application will use.
+resource "google_storage_bucket" "example_bucket" {
+  name     = "klim-terraform-demo"
+  location = "US"
+
+  website {
+    main_page_suffix = "index.html"
+    not_found_page   = "404.html"
+  }
 }
 
-resource "google_compute_subnetwork" "vpc_subnetwork" {
-  ip_cidr_range            = "10.4.4.0/24"
-  name                     = "terraform-subnet"
-  network                  = google_compute_network.vpc_network.name
-  private_ip_google_access = "false"
-}
 
 resource "google_compute_instance" "vm_instance" {
+
+  depends_on = [google_storage_bucket.example_bucket]
+
   name         = "terraform-instance"
   machine_type = "f1-micro"
+  tags         = ["klim-web"]
 
   boot_disk {
     initialize_params {
@@ -35,8 +39,8 @@ resource "google_compute_instance" "vm_instance" {
     network    = google_compute_network.vpc_network.name
     subnetwork = google_compute_subnetwork.vpc_subnetwork.name
     access_config {
+      nat_ip = google_compute_address.vm_ip_static.address
     }
   }
 }
-
 
